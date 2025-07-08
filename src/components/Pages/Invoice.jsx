@@ -6,19 +6,27 @@ import {
   UserIcon,
   BuildingOfficeIcon,
   CurrencyRupeeIcon,
+  GlobeAltIcon,
 } from "@heroicons/react/20/solid";
 import Item from "./Item";
 import axios from "axios";
 import Logo from "../../image/MTL.png";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { useNavigate } from "react-router-dom";
 
 const Invoice = () => {
   const today = new Date().toISOString().split("T")[0];
   const [errors, setErrors] = useState({});
+
+  const [country, setCountry] = useState(null);
+
+  const navigate=useNavigate("");
+
   const [formData, setFormData] = useState({
     invoiceType: "",
     invoiceNumber: "",
+    country:"",
     issueDate: today,
     dueDate: "",
     companyName: "Middleware Talents",
@@ -28,6 +36,7 @@ const Invoice = () => {
     clientAddress: "",
     cgst: 0,
     sgst: 0,
+    vat: 0,
     tax: 0,
     totalAmount: 0,
     invoiceItems: [
@@ -35,7 +44,7 @@ const Invoice = () => {
     ],
   });
 
-  const [isInvoice, setIsInvoice]=useState(false);
+  const [isInvoice, setIsInvoice] = useState(false);
 
   const validate = () => {
     const newErrors = {};
@@ -52,14 +61,6 @@ const Invoice = () => {
       newErrors.dueDate = "Due date is required";
       isError = true;
     }
-    if (!formData.cgst) {
-      newErrors.cgst = "CGST is required";
-      isError = true;
-    }
-    if (!formData.sgst) {
-      newErrors.sgst = "SGST is required";
-      isError = true;
-    }
     setErrors(() => newErrors);
 
     if (!isError) {
@@ -72,7 +73,7 @@ const Invoice = () => {
   useEffect(() => {
     const fetchCompinies = async () => {
       const response = await axios.get(
-        "http://localhost:8085/api/companyDetails/all"
+        `http://localhost:8085/api/companyDetails/getByCountry/${country}`
       );
       let data = response.data;
       data.unshift({
@@ -87,7 +88,7 @@ const Invoice = () => {
       setCompanyDetails(data);
     };
     fetchCompinies();
-  }, []);
+  }, [country]);
 
   const [tab, setTab] = useState(true);
 
@@ -189,10 +190,16 @@ const Invoice = () => {
   };
 
   const calculateTax = () => {
-    const subtotal = Number.parseFloat(calculateSubtotal());
-    const cgstPer = subtotal * ((parseFloat(formData.cgst) || 0) / 100);
-    const sgstPer = subtotal * ((parseFloat(formData.sgst) || 0) / 100);
-    return cgstPer + sgstPer;
+    if (country === "India") {
+      const subtotal = Number.parseFloat(calculateSubtotal());
+      const cgstPer = subtotal * ((parseFloat(formData.cgst) || 0) / 100);
+      const sgstPer = subtotal * ((parseFloat(formData.sgst) || 0) / 100);
+      return cgstPer + sgstPer;
+    } else if (country === "UK") {
+      const subtotal = Number.parseFloat(calculateSubtotal());
+      const vatPer = subtotal * ((parseFloat(formData.vat) || 0) / 100);
+      return vatPer;
+    }
   };
 
   const calculateTotal = () => {
@@ -202,15 +209,13 @@ const Invoice = () => {
 
   // const handleSubmit = async () => {
 
-    useEffect(()=>{
-      if(formData.invoiceType==="Invoice for Product"){
-        setIsInvoice(true);
-      }
-      else if(formData.invoiceType==="Invoice for Candidate"){
-        setIsInvoice(false);
-      }
-    },[formData.invoiceType])
-
+  useEffect(() => {
+    if (formData.invoiceType === "Invoice for Product") {
+      setIsInvoice(true);
+    } else if (formData.invoiceType === "Invoice for Candidate") {
+      setIsInvoice(false);
+    }
+  }, [formData.invoiceType]);
 
   //   setTab(false);
   //   try {
@@ -284,6 +289,7 @@ const Invoice = () => {
           invoiceNumber: formData.invoiceNumber,
           issueDate: formData.issueDate,
           dueDate: formData.dueDate,
+          country,
           companyName: formData.companyName,
           client: {
             clientName: formData.clientName,
@@ -296,6 +302,7 @@ const Invoice = () => {
           tax: calculateTax(),
           totalAmount: calculateTotal(),
         }
+        
       );
 
       const doc = new jsPDF();
@@ -336,7 +343,10 @@ const Invoice = () => {
 
       // --- Invoice Items Table ---
       const headers = [
-        { title: isInvoice ? "Description":"Candidate Name", dataKey: "description" },
+        {
+          title: isInvoice ? "Description" : "Candidate Name",
+          dataKey: "description",
+        },
         { title: "Hours", dataKey: "quantity" },
         { title: "Price/Per Hour", dataKey: "unitPrice" },
         { title: "Amount", dataKey: "totalPrice" },
@@ -406,6 +416,7 @@ const Invoice = () => {
         invoiceType: "",
         invoiceNumber: "",
         issueDate: "",
+        country:"",
         dueDate: "",
         companyName: "",
         clientName: "",
@@ -419,7 +430,7 @@ const Invoice = () => {
         ],
       });
 
-      setTab(true);
+      navigate("/")
       console.log("Invoice submitted successfully:", response.data);
       alert("Invoice submitted and downloaded successfully!");
     } catch (error) {
@@ -469,6 +480,36 @@ const Invoice = () => {
         <div className="space-y-6">
           <div className="bg-white shadow-md rounded-lg p-6">
             <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <GlobeAltIcon className="w-6 h-6 text-sky-400" />
+              Country
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
+              <div>
+                <label
+                  htmlFor="country"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Country
+                </label>
+                <select
+                  name="country"
+                  id="country"
+                  onChange={(e) => setCountry(e.target.value)}
+                  value={country}
+                  className="w-full px-3 py-2 border text-sm border-gray-300  rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                >
+                  <option value="">Select Country</option>
+                  <option value="India">India</option>
+                  <option value="UK">UK</option>
+                </select>
+                {/* {errors.invoiceType && (
+                  <p className="text-xs text-red-600">{errors.invoiceType}</p>
+                )} */}
+              </div>
+            </div>
+          </div>
+          <div className="bg-white shadow-md rounded-lg p-6">
+            <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
               <DocumentTextIcon className="w-6 h-6 text-sky-400" />
               Invoice Details
             </h3>
@@ -512,11 +553,14 @@ const Invoice = () => {
                     className="w-full px-3 py-2 border text-sm border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                     id="invoiceNumber"
                     onChange={changeSelected}
-              
                     name="invoiceNumber"
                   >
                     {companyDetails.map((each) => (
-                      <option selected={formData.invoiceNumber === each.id} key={each.id} value={each.id}>
+                      <option
+                        selected={formData.invoiceNumber === each.id}
+                        key={each.id}
+                        value={each.id}
+                      >
                         {each.companyName}
                       </option>
                     ))}
@@ -647,53 +691,83 @@ const Invoice = () => {
             </div>
           </div>
 
-          <div className="bg-white shadow-md rounded-lg p-6">
-            <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
-              <CurrencyRupeeIcon className="w-6 h-6 text-sky-400" />
-              Tax
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label
-                  htmlFor="cgst"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  CGST %
-                </label>
-                <input
-                  id="cgst"
-                  name="cgst"
-                  type="text"
-                  value={formData.cgst}
-                  onChange={handleChange}
-                  onBlur={changeErrors}
-                  className="w-full px-3 py-2 border text-sm border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                {errors.cgst && (
-                  <p className="text-xs text-red-600">{errors.cgst}</p>
-                )}
-              </div>
-              <div>
-                <label
-                  htmlFor="clientEmail"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  SGST %
-                </label>
-                <input
-                  id="sgst"
-                  name="sgst"
-                  type="text"
-                  value={formData.sgst}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border text-sm border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                {errors.sgst && (
-                  <p className="text-xs text-red-600">{errors.sgst}</p>
-                )}
+          {country === "India" && (
+            <div className="bg-white shadow-md rounded-lg p-6">
+              <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                <CurrencyRupeeIcon className="w-6 h-6 text-sky-400" />
+                Tax
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label
+                    htmlFor="cgst"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    CGST %
+                  </label>
+                  <input
+                    id="cgst"
+                    name="cgst"
+                    type="text"
+                    value={formData.cgst}
+                    onChange={handleChange}
+                    onBlur={changeErrors}
+                    className="w-full px-3 py-2 border text-sm border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  {errors.cgst && (
+                    <p className="text-xs text-red-600">{errors.cgst}</p>
+                  )}
+                </div>
+                <div>
+                  <label
+                    htmlFor="clientEmail"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    SGST %
+                  </label>
+                  <input
+                    id="sgst"
+                    name="sgst"
+                    type="text"
+                    value={formData.sgst}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border text-sm border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  {errors.sgst && (
+                    <p className="text-xs text-red-600">{errors.sgst}</p>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
+          )}
+
+          {country === "UK" && (
+            <div className="bg-white shadow-md rounded-lg p-6">
+              <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                <CurrencyRupeeIcon className="w-6 h-6 text-sky-400" />
+                Tax
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label
+                    htmlFor="vat"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    VAT %
+                  </label>
+                  <input
+                    id="vat"
+                    name="vat"
+                    type="text"
+                    value={formData.vat}
+                    onChange={handleChange}
+                    onBlur={changeErrors}
+                    className="w-full px-3 py-2 border text-sm border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
 
           {formData.invoiceType === "Invoice for Product" && (
             <div className="bg-white shadow-md rounded-lg p-6">
@@ -902,16 +976,23 @@ const Invoice = () => {
             <div className="space-y-2">
               <div className="flex justify-between">
                 <span className="font-medium text-gray-700">Subtotal:</span>
-                <span className="font-semibold">₹{calculateSubtotal()}</span>
+                <span className="font-semibold">
+                  {country === "UK" ? "£" : "₹"}
+                  {calculateSubtotal()}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="font-medium text-gray-700">Tax:</span>
-                <span className="font-semibold">₹{calculateTax()}</span>
+                <span className="font-semibold">
+                  {country === "UK" ? "£" : "₹"}
+                  {calculateTax()}
+                </span>
               </div>
               <div className="flex justify-between text-lg">
                 <span className="font-semibold text-gray-700">Total:</span>
                 <span className="font-semibold text-blue-600">
-                  ₹{calculateTotal()}
+                  {country === "UK" ? "£" : "₹"}
+                  {calculateTotal()}
                 </span>
               </div>
             </div>
@@ -1042,15 +1123,24 @@ const Invoice = () => {
               <div className="w-64">
                 <div className="flex justify-between mb-2">
                   <span className="font-semibold">Sub Total</span>
-                  <span>₹{calculateSubtotal()}</span>
+                  <span>
+                    {country === "UK" ? "£" : "₹"}
+                    {calculateSubtotal()}
+                  </span>
                 </div>
                 <div className="flex justify-between mb-2">
                   <span className="font-semibold">Tax %</span>
-                  <span>₹{calculateTax()}</span>
+                  <span>
+                    {country === "UK" ? "£" : "₹"}
+                    {calculateTax()}
+                  </span>
                 </div>
                 <div className="flex justify-between border-t-2 border-gray-900 pt-2">
                   <span className="font-bold">TOTAL</span>
-                  <span className="font-bold">₹{calculateTotal()}</span>
+                  <span className="font-bold">
+                    {country === "UK" ? "£" : "₹"}
+                    {calculateTotal()}
+                  </span>
                 </div>
               </div>
             </div>

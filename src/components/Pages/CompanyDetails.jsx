@@ -1,5 +1,6 @@
 import axios from "axios";
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const CompanyDetails = () => {
   const [formData, setFormData] = useState({
@@ -7,9 +8,12 @@ const CompanyDetails = () => {
     companyEmail: "",
     companyCode: "",
     gstNo: "",
+    country: "",
     companyAddress: "",
   });
   const [submitted, setSubmitted] = useState(false);
+
+  const navigate=useNavigate();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -37,6 +41,7 @@ const CompanyDetails = () => {
         companyEmail: "",
         companyCode: "",
         gstNo: "",
+        country: "",
         companyAddress: "",
       });
       setSubmitted(true);
@@ -48,9 +53,17 @@ const CompanyDetails = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
       <div className="w-full max-w-2xl bg-white shadow-lg rounded-lg p-6">
-        <h2 className="text-2xl font-bold text-gray-800 text-center mb-6">
-          Company Details
-        </h2>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-gray-800">Company Details</h2>
+          <button
+            onClick={() => navigate("/CompanyDashboard")}
+            className="text-gray-500 hover:text-red-600 text-2xl font-bold focus:outline-none"
+            aria-label="Close"
+          >
+            &times;
+          </button>
+        </div>
+
         {submitted ? (
           <div className="text-center text-green-600 font-semibold text-lg">
             Your company details have been submitted successfully.
@@ -59,7 +72,9 @@ const CompanyDetails = () => {
           <form className="space-y-4" onSubmit={handleSubmit}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block font-semibold text-gray-700">Company Name</label>
+                <label className="block font-semibold text-gray-700">
+                  Company Name
+                </label>
                 <input
                   type="text"
                   name="companyName"
@@ -70,7 +85,9 @@ const CompanyDetails = () => {
                 />
               </div>
               <div>
-                <label className="block font-semibold text-gray-600">Company Email</label>
+                <label className="block font-semibold text-gray-600">
+                  Company Email
+                </label>
                 <input
                   type="text"
                   name="companyEmail"
@@ -83,7 +100,9 @@ const CompanyDetails = () => {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block font-semibold text-gray-600">Company Code</label>
+                <label className="block font-semibold text-gray-600">
+                  Company Code
+                </label>
                 <input
                   type="text"
                   name="companyCode"
@@ -94,7 +113,9 @@ const CompanyDetails = () => {
                 />
               </div>
               <div>
-                <label className="block font-semibold text-gray-600">GST NO</label>
+                <label className="block font-semibold text-gray-600">
+                  GST NO
+                </label>
                 <input
                   type="text"
                   name="gstNo"
@@ -105,8 +126,37 @@ const CompanyDetails = () => {
                 />
               </div>
             </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block font-semibold text-gray-600">
+                  Country
+                </label>
+                {/* <input
+                  type="text"
+                  name="country"
+                  value={formData.country}
+                  onChange={handleChange}
+                  placeholder="Country"
+                  className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-400 focus:outline-none"
+                /> */}
+                <select
+                  name="country"
+                  id="country"
+                  onChange={handleChange}
+                  value={formData.country}
+                  className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-400 focus:outline-none"
+                >
+                  <option value="">Select Coutry</option>
+                  <option value="India">India</option>
+                  <option value="UK">UK</option>
+                </select>
+              </div>
+            </div>
             <div>
-              <label className="block font-semibold text-gray-600">Company Address</label>
+              <label className="block font-semibold text-gray-600">
+                Company Address
+              </label>
               <textarea
                 name="companyAddress"
                 value={formData.companyAddress}

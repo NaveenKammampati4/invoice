@@ -5,16 +5,39 @@ import ConfirmPaidModal from "./ConfirmPaidModal";
 
 const InvoicesDashboard = () => {
   const [invoices, setInvoices] = useState([]);
-  const [totalInvoices, setTotalInvoices]=useState([]);
+  const [totalInvoices, setTotalInvoices] = useState([]);
+  const [status, setStatus] = useState("all");
 
   const [isUpdateModelOpen, setIsUpdateModel] = useState(false);
   const [updateInvoice, setUpdateInvoice] = useState(null);
 
+  const [createdDate, setCreatedDate] = useState(null);
+  const [dueDate, setDueDate] = useState(null);
+  const [searchData, setSearchData] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const invoicesPerPage = 5;
+
+  const indexOfLastInvoice = currentPage * invoicesPerPage;
+  const indexOfFirstInvoice = indexOfLastInvoice - invoicesPerPage;
+  const currentInvoices = invoices.slice(
+    indexOfFirstInvoice,
+    indexOfLastInvoice
+  );
+  const totalPages = Math.ceil(invoices.length / invoicesPerPage);
+
   const navigate = useNavigate();
   useEffect(() => {
     const fetchInvoices = async () => {
+      let url = "http://localhost:8085/api/invoices";
+      if (status === "PENDING") {
+        url = "http://localhost:8085/api/invoices/pendingInvoices";
+      } else if (status === "OVERDUE") {
+        url = "http://localhost:8085/api/invoices/overDueInvoices";
+      } else if (status === "PAID") {
+        url = "http://localhost:8085/api/invoices/paidInvoices";
+      }
       try {
-        const response = await axios.get("http://localhost:8085/api/invoices");
+        const response = await axios.get(url);
         setInvoices(response.data);
         console.log(response);
       } catch (error) {
@@ -22,26 +45,51 @@ const InvoicesDashboard = () => {
       }
     };
 
-    const fetchAllInvoicesData= async()=>{
-      try{
-        const response =await axios.get("http://localhost:8085/api/invoices/getInvoiceData");
+    const fetchAllInvoicesData = async () => {
+      try {
+        const response = await axios.get(
+          "http://localhost:8085/api/invoices/getInvoiceData"
+        );
         setTotalInvoices(response.data);
         console.log("Invoice Data", response);
-        
-      }catch(error){
+      } catch (error) {
         console.error("Error fetching invoice data: ", error);
-        
       }
-    }
+    };
     fetchInvoices();
     fetchAllInvoicesData();
-  }, []);
+  }, [status]);
 
   const paymentUpdate = (id) => {
     const data = invoices.filter((each) => each.id === id);
 
     setUpdateInvoice(data[0]);
     setIsUpdateModel(!isUpdateModelOpen);
+  };
+
+  const searchingData = (v) => {
+    setSearchData(() => v);
+    const filterData = invoices.filter((p) => p.invoiceNumber.includes(v));
+    setInvoices(filterData);
+    console.log(searchData);
+  };
+
+  const handleFilter = async () => {
+    try {
+      const response = await axios.get(
+        "http://localhost:8085/api/invoices/fetchByDate",
+        {
+          params: {
+            issueDate: createdDate,
+            dueDate: dueDate,
+          },
+        }
+      );
+      setInvoices(response.data);
+      console.log(response);
+    } catch (error) {
+      console.error("Error fetching filter dates", error);
+    }
   };
 
   const fetchByInvoiceId = async (updateId) => {
@@ -82,7 +130,7 @@ const InvoicesDashboard = () => {
               </div>
 
               <button
-                onClick={() => navigate("/Invoice")} // replace with your route
+                onClick={() => navigate("/Invoice")}
                 className="mt-4 sm:mt-0 bg-gray-600 text-white px-4 py-2 rounded-md font-medium text-sm hover:bg-gray-500 transition"
               >
                 Create Invoice
@@ -90,63 +138,122 @@ const InvoicesDashboard = () => {
             </div>
           </div>
 
-          {totalInvoices.length>0 && <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <div className="bg-white p-4 rounded-xl shadow text-center">
-              <p className="text-sm text-gray-500 mb-1">Total Invoices</p>
-              <p className="text-2xl font-semibold text-gray-800">{totalInvoices[2].count+totalInvoices[0].count+totalInvoices[1].count}</p>
+          {totalInvoices.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+              <div
+                className="bg-white p-3 cursor-pointer rounded-lg shadow-sm hover:shadow-md transition text-center"
+                onClick={() => setStatus("all")}
+              >
+                <p className="text-xs text-gray-500 mb-1">Total Invoices</p>
+                <p className="text-xl font-semibold text-gray-800">
+                  {totalInvoices[2].count +
+                    totalInvoices[0].count +
+                    totalInvoices[1].count}
+                </p>
+              </div>
+              <div
+                className="bg-blue-50 p-3 cursor-pointer rounded-lg shadow-sm hover:shadow-md transition text-center"
+                onClick={() => setStatus("PENDING")}
+              >
+                <p className="text-xs text-blue-700 mb-1">Pending</p>
+                <p className="text-xl font-semibold text-blue-700">
+                  {totalInvoices[2].count}
+                </p>
+              </div>
+              <div
+                className="bg-yellow-50 p-3 cursor-pointer rounded-lg shadow-sm hover:shadow-md transition text-center"
+                onClick={() => setStatus("OVERDUE")}
+              >
+                <p className="text-xs text-yellow-700 mb-1">Overdue</p>
+                <p className="text-xl font-semibold text-yellow-700">
+                  {totalInvoices[0].count}
+                </p>
+              </div>
+              <div
+                className="bg-green-50 p-3 cursor-pointer rounded-lg shadow-sm hover:shadow-md transition text-center"
+                onClick={() => setStatus("PAID")}
+              >
+                <p className="text-xs text-green-700 mb-1">Paid</p>
+                <p className="text-xl font-semibold text-green-700">
+                  {totalInvoices[1].count}
+                </p>
+              </div>
             </div>
-            <div className="bg-blue-50 p-4 rounded-xl shadow text-center">
-              <p className="text-sm text-blue-700 mb-1">Pending</p>
-              <p className="text-2xl font-semibold text-blue-700">{totalInvoices[2].count}</p>
-            </div>
-            <div className="bg-yellow-50 p-4 rounded-xl shadow text-center">
-              <p className="text-sm text-yellow-700 mb-1">Overdue</p>
-              <p className="text-2xl font-semibold text-yellow-700">
-                {totalInvoices[0].count}
-              </p>
-            </div>
-            <div className="bg-green-50 p-4 rounded-xl shadow text-center">
-              <p className="text-sm text-green-700 mb-1">Paid</p>
-              <p className="text-2xl font-semibold text-green-700">{totalInvoices[1].count}</p>
-            </div>
-          </div>}
+          )}
 
+          {/* Filter Form */}
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-end gap-4 mb-6">
+            <input
+              type="text"
+              onChange={(e) => {
+                searchingData(e.target.value);
+                setCurrentPage(1); // reset to page 1
+              }}
+              value={searchData}
+              placeholder="Search By Invoice Number"
+              className="border px-3 py-2 rounded-md text-sm w-full sm:w-60"
+            />
+            <div className="flex flex-col">
+              <label className="text-sm text-gray-600 mb-1">Created Date</label>
+              <input
+                type="date"
+                onChange={(e) => {
+                  setCreatedDate(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="border px-3 py-2 rounded-md text-sm w-full sm:w-44"
+              />
+            </div>
+            <div className="flex flex-col">
+              <label className="text-sm text-gray-600 mb-1">Due Date</label>
+              <input
+                type="date"
+                onChange={(e) => {
+                  setDueDate(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="border px-3 py-2 rounded-md text-sm w-full sm:w-44"
+              />
+            </div>
+            <button
+              onClick={() => {
+                handleFilter();
+                setCurrentPage(1);
+              }}
+              className="bg-gray-700 text-white px-4 py-2 rounded-md text-sm hover:bg-gray-600 transition w-full sm:w-auto"
+            >
+              Filter
+            </button>
+          </div>
+
+          {/* Invoice Table */}
           <div className="overflow-auto bg-white rounded-2xl shadow-md">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Invoice Number
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    From Company
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    To Company
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Issue Date
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Due Date
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Country
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Total Amount
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
+                  {[
+                    "Invoice Number",
+                    "From Company",
+                    "To Company",
+                    "Issue Date",
+                    "Due Date",
+                    "Country",
+                    "Status",
+                    "Total Amount",
+                    "Actions",
+                  ].map((header, i) => (
+                    <th
+                      key={i}
+                      className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    >
+                      {header}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {invoices.length > 0 ? (
-                  invoices.map((invoiceData, index) => (
+                {currentInvoices.length > 0 ? (
+                  currentInvoices.map((invoiceData, index) => (
                     <tr key={index} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                         {invoiceData.invoiceNumber}
@@ -167,13 +274,13 @@ const InvoicesDashboard = () => {
                         {invoiceData.country}
                       </td>
                       <td
-                        className={
+                        className={`px-6 py-4 whitespace-nowrap font-semibold text-sm ${
                           invoiceData.invoiceStatus === "PAID"
-                            ? "px-6 py-4 whitespace-nowrap font-semibold text-sm text-green-700"
+                            ? "text-green-700"
                             : invoiceData.invoiceStatus === "PENDING"
-                            ? "px-6 py-4 whitespace-nowrap font-semibold text-sm text-blue-700"
-                            : "px-6 py-4 whitespace-nowrap font-semibold text-sm text-red-700"
-                        }
+                            ? "text-blue-700"
+                            : "text-red-700"
+                        }`}
                       >
                         {invoiceData.invoiceStatus}
                       </td>
@@ -210,7 +317,7 @@ const InvoicesDashboard = () => {
                 ) : (
                   <tr>
                     <td
-                      colSpan="6"
+                      colSpan="9"
                       className="px-6 py-4 text-center text-gray-500 text-sm"
                     >
                       No invoices data found.
@@ -219,10 +326,44 @@ const InvoicesDashboard = () => {
                 )}
               </tbody>
             </table>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex justify-end items-center gap-2 px-4 py-4">
+                <button
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage((prev) => prev - 1)}
+                  className="px-3 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50"
+                >
+                  Prev
+                </button>
+                {[...Array(totalPages).keys()].map((pageNum) => (
+                  <button
+                    key={pageNum + 1}
+                    onClick={() => setCurrentPage(pageNum + 1)}
+                    className={`px-3 py-1 text-sm rounded ${
+                      currentPage === pageNum + 1
+                        ? "bg-gray-700 text-white"
+                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                    }`}
+                  >
+                    {pageNum + 1}
+                  </button>
+                ))}
+                <button
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage((prev) => prev + 1)}
+                  className="px-3 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
+      {/* Modal */}
       {isUpdateModelOpen && (
         <ConfirmPaidModal
           fetchByInvoiceId={fetchByInvoiceId}
